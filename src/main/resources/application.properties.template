@@ -1,5 +1,10 @@
-spring.datasource.initialization-mode=always
-spring.datasource.platform=
-spring.datasource.url=
-spring.datasource.username=
-spring.datasource.password=
+spring.r2dbc.username=
+spring.r2dbc.password=
+spring.r2dbc.url=
+
+spring.r2dbc.pool.enabled=
+spring.r2dbc.pool.initial-size=
+spring.r2dbc.pool.max-idle-time=
+spring.r2dbc.pool.max-size=
+spring.data.r2dbc.repositories.enabled=
+logging.level.org.springframework.data.r2dbc=
