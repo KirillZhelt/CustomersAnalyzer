@@ -1,5 +1,8 @@
 package dev.kirillzhelt.customers.config;
 
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import dev.kirillzhelt.customers.handler.ImportHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,6 +25,14 @@ public class RouteConfig {
 
     public RouteConfig(ImportHandler importHandler) {
         this.importHandler = importHandler;
+    }
+
+    @Bean
+    ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 
     @Bean
