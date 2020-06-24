@@ -3,38 +3,64 @@ package dev.kirillzhelt.customers.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.kirillzhelt.customers.entity.util.Gender;
-import org.springframework.format.annotation.DateTimeFormat;
+import dev.kirillzhelt.customers.validator.constraint.BeforeTodayConstraint;
+import dev.kirillzhelt.customers.validator.constraint.OneNumberOrLetterConstraint;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 
-public class CitizenDTO {
+public class ImportCitizenDTO {
 
     @JsonProperty("citizen_id")
-    private int citizenId;
+    @NotNull
+    @Min(0)
+    private Integer citizenId;
 
+    @NotNull
+    @Size(min = 1, max = 256)
+    @OneNumberOrLetterConstraint
     private String town;
-    private String street;
-    private String building;
-    private int apartment;
 
+    @NotNull
+    @Size(min = 1, max = 256)
+    @OneNumberOrLetterConstraint
+    private String street;
+
+    @NotNull
+    @Size(min = 1, max = 256)
+    @OneNumberOrLetterConstraint
+    private String building;
+
+    @NotNull
+    @Min(0)
+    private Integer apartment;
+
+    @NotNull
+    @Size(min = 1, max = 256)
     private String name;
 
     @JsonProperty("birth_date")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd.MM.yyyy")
+    @NotNull
+    @BeforeTodayConstraint
     private LocalDate birthDate;
 
+    @NotNull
     private Gender gender;
 
+    @NotNull
     private List<Integer> relatives;
 
-    public CitizenDTO() {}
+    public ImportCitizenDTO() {}
 
-    public int getCitizenId() {
+    public Integer getCitizenId() {
         return citizenId;
     }
 
-    public void setCitizenId(int citizenId) {
+    public void setCitizenId(Integer citizenId) {
         this.citizenId = citizenId;
     }
 
@@ -62,11 +88,11 @@ public class CitizenDTO {
         this.building = building;
     }
 
-    public int getApartment() {
+    public Integer getApartment() {
         return apartment;
     }
 
-    public void setApartment(int apartment) {
+    public void setApartment(Integer apartment) {
         this.apartment = apartment;
     }
 

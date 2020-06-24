@@ -5,15 +5,15 @@ import java.util.List;
 
 public class ImportDTO {
 
-    private List<CitizenDTO> citizens;
+    private List<ImportCitizenDTO> citizens;
 
     public ImportDTO() {}
 
-    public List<CitizenDTO> getCitizens() {
+    public List<ImportCitizenDTO> getCitizens() {
         return citizens;
     }
 
-    public void setCitizens(List<CitizenDTO> citizens) {
+    public void setCitizens(List<ImportCitizenDTO> citizens) {
         this.citizens = citizens;
     }
 
