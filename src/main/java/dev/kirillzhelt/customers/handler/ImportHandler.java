@@ -21,10 +21,7 @@ import reactor.util.function.Tuple2;
 import javax.validation.ConstraintViolation;
 import javax.validation.ValidationException;
 import javax.validation.Validator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
@@ -55,7 +52,41 @@ public class ImportHandler {
         return ok().bodyValue("Hello World");
     }
 
+    private Set<Integer> getCitizenIds(ImportDTO newImport) {
+        return newImport.getCitizens()
+            .stream()
+            .map(ImportCitizenDTO::getCitizenId)
+            .collect(Collectors.toSet());
+    }
+
+    private void checkCitizenIds(ImportDTO newImport) {
+        Set<Integer> citizenIds = this.getCitizenIds(newImport);
+
+        if (citizenIds.size() != newImport.getCitizens().size()) {
+            throw new ValidationException("Citizens ids are not unique");
+        }
+    }
+
+    private void checkRelations(ImportDTO newImport) {
+        Map<Integer, Set<Integer>> relationsForCitizenId = new HashMap<>();
+        newImport.getCitizens().forEach(citizen -> {
+            relationsForCitizenId.put(citizen.getCitizenId(), new HashSet<>(citizen.getRelatives()));
+        });
+
+        newImport.getCitizens().forEach(citizen -> {
+            citizen.getRelatives().forEach(relativeId -> {
+                Set<Integer> otherRelatives = relationsForCitizenId.get(relativeId);
+                if (otherRelatives == null || !otherRelatives.contains(citizen.getCitizenId())) {
+                    throw new ValidationException("Invalid id in relatives field");
+                }
+            });
+        });
+    }
+
     private void validateImportData(ImportDTO newImport) {
+        this.checkCitizenIds(newImport);
+        this.checkRelations(newImport);
+
         newImport.getCitizens().forEach(citizen -> {
             Set<ConstraintViolation<ImportCitizenDTO>> violations = this.validator.validate(citizen);
             log.info("Size of set of constraints violations: {}", violations.size());
