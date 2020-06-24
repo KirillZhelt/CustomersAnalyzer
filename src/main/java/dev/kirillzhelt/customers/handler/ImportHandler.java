@@ -9,12 +9,14 @@ import dev.kirillzhelt.customers.entity.Relative;
 import dev.kirillzhelt.customers.repository.CitizenRepository;
 import dev.kirillzhelt.customers.repository.ImportRepository;
 import dev.kirillzhelt.customers.repository.RelativeRepository;
+import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
@@ -153,8 +155,50 @@ public class ImportHandler {
         return status(HttpStatus.NOT_IMPLEMENTED).build();
     }
 
+    private Mono<Tuple2<List<Relative>, Citizen>> findRelativesForCitizen(Citizen citizen, Integer importId) {
+        Mono<List<Relative>> relatives = this.relativeRepository.findAllByCitizenIdAndImportId(citizen.getCitizenId(), importId).collectList();
+        return relatives.zipWith(Mono.just(citizen));
+    }
+
+    private ImportCitizenDTO mapCitizenToDTO(Tuple2<List<Relative>, Citizen> citizenAndRelatives) {
+        Citizen citizen = citizenAndRelatives.getT2();
+        List<Relative> relatives = citizenAndRelatives.getT1();
+
+        ImportCitizenDTO importCitizen = new ImportCitizenDTO();
+        importCitizen.setCitizenId(citizen.getCitizenId());
+        importCitizen.setTown(citizen.getTown());
+        importCitizen.setStreet(citizen.getStreet());
+        importCitizen.setBuilding(citizen.getBuilding());
+        importCitizen.setApartment(citizen.getApartment());
+        importCitizen.setName(citizen.getName());
+        importCitizen.setBirthDate(citizen.getBirthDate());
+        importCitizen.setGender(citizen.getGender());
+        importCitizen.setRelatives(relatives.stream().map(Relative::getRelativeId).collect(Collectors.toList()));
+
+        return importCitizen;
+    }
+
     public Mono<ServerResponse> getImport(ServerRequest req) {
-        return status(HttpStatus.NOT_IMPLEMENTED).build();
+        try {
+            int importId = Integer.parseInt(req.pathVariable("importId"));
+
+            return this.importRepository.existsById(importId).flatMap(exists -> {
+                if (exists) {
+                    Mono<List<ImportCitizenDTO>> citizensMono =
+                        this.citizenRepository.findAllByImportId(importId)
+                            .flatMap(citizen -> this.findRelativesForCitizen(citizen, importId))
+                            .map(this::mapCitizenToDTO)
+                            .collect(Collectors.toList());
+
+                    return citizensMono
+                        .flatMap(citizens -> ok().bodyValue(new DataResponseDTO<>(citizens)));
+                } else {
+                    return status(HttpStatus.BAD_REQUEST).build();
+                }
+            });
+        } catch (NumberFormatException ex) {
+            return status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
     public Mono<ServerResponse> countPresents(ServerRequest req) {
