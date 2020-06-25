@@ -3,6 +3,7 @@ package dev.kirillzhelt.customers.handler;
 import dev.kirillzhelt.customers.dto.ImportCitizenDTO;
 import dev.kirillzhelt.customers.dto.DataResponseDTO;
 import dev.kirillzhelt.customers.dto.ImportDTO;
+import dev.kirillzhelt.customers.dto.PatchCitizenDTO;
 import dev.kirillzhelt.customers.entity.Citizen;
 import dev.kirillzhelt.customers.entity.Import;
 import dev.kirillzhelt.customers.entity.Relative;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
@@ -25,9 +27,11 @@ import javax.validation.ValidationException;
 import javax.validation.Validator;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
+import static org.springframework.web.reactive.function.server.ServerResponse.badRequest;
+import static org.springframework.web.reactive.function.server.ServerResponse.notFound;
 import static org.springframework.web.reactive.function.server.ServerResponse.status;
 
 @Component
@@ -151,8 +155,112 @@ public class ImportHandler {
             });
     }
 
+    private void validatePatchCitizen(PatchCitizenDTO citizen) {
+        if (citizen.getTown() == null && citizen.getStreet() == null && citizen.getBuilding() == null &&
+            citizen.getApartment() == null && citizen.getName() == null && citizen.getBirthDate() == null &&
+            citizen.getGender() == null && citizen.getRelatives() == null) {
+            throw new ValidationException("All fields are null");
+        }
+
+        Set<ConstraintViolation<PatchCitizenDTO>> violations = this.validator.validate(citizen);
+        log.info("Size of set of constraints violations: {}", violations.size());
+
+        if (violations.size() != 0) {
+            throw new ValidationException(String.format("Violations: %s", violations));
+        }
+    }
+
+    private Mono<Tuple2<Citizen, PatchCitizenDTO>> updateCitizen(Tuple2<Citizen, PatchCitizenDTO> data) {
+        Citizen citizen = data.getT1();
+        PatchCitizenDTO patchCitizen = data.getT2();
+
+        if (patchCitizen.getTown() != null) {
+            citizen.setTown(patchCitizen.getTown());
+        }
+
+        if (patchCitizen.getStreet() != null) {
+            citizen.setTown(patchCitizen.getTown());
+        }
+
+        if (patchCitizen.getBuilding() != null) {
+            citizen.setBuilding(patchCitizen.getBuilding());
+        }
+
+        if (patchCitizen.getApartment() != null) {
+            citizen.setApartment(patchCitizen.getApartment());
+        }
+
+        if (patchCitizen.getName() != null) {
+            citizen.setName(patchCitizen.getName());
+        }
+
+        if (patchCitizen.getBirthDate() != null) {
+            citizen.setBirthDate(patchCitizen.getBirthDate());
+        }
+
+        if (patchCitizen.getGender() != null) {
+            citizen.setGender(patchCitizen.getGender());
+        }
+
+        return this.citizenRepository.save(citizen).zipWith(Mono.just(patchCitizen));
+    }
+
+    @Transactional
+    public Mono<List<Relative>> updateRelatives(Tuple2<Citizen, PatchCitizenDTO> data) {
+        Citizen citizen = data.getT1();
+        PatchCitizenDTO patchCitizen = data.getT2();
+
+        if (patchCitizen.getRelatives() != null) {
+            Mono<List<Relative>> relativesMono;
+            List<Relative> relatives = patchCitizen.getRelatives()
+                .stream()
+                .flatMap(relativeId -> Stream.of(new Relative(citizen.getImportId(), citizen.getCitizenId(), relativeId),
+                    new Relative(citizen.getImportId(), relativeId, citizen.getCitizenId())))
+                .collect(Collectors.toList());
+
+            if (relatives.isEmpty()) {
+                relativesMono = Mono.just(Collections.emptyList());
+            } else {
+                relativesMono = this.relativeRepository.saveAll(relatives).collectList();
+            }
+
+            return this.relativeRepository.deleteAllRelativeData(citizen.getImportId(), citizen.getCitizenId())
+                .then(relativesMono);
+        }
+
+        return this.relativeRepository.findAllByCitizenIdAndImportId(citizen.getCitizenId(), citizen.getImportId()).collectList();
+    }
+
     public Mono<ServerResponse> patchCitizen(ServerRequest req) {
-        return status(HttpStatus.NOT_IMPLEMENTED).build();
+        try {
+            Integer importId = Integer.parseInt(req.pathVariable("importId"));
+            Integer citizenId = Integer.parseInt(req.pathVariable("citizenId"));
+
+            Mono<Citizen> citizenMono = this.citizenRepository
+                .findByImportIdAndCitizenId(importId, citizenId)
+                .doOnNext(citizen -> {
+                    if (citizen == null) {
+                        throw new IllegalArgumentException("No citizen with such import id and citizen id");
+                    }
+                });
+
+            Mono<PatchCitizenDTO> patchCitizenMono = req.bodyToMono(PatchCitizenDTO.class)
+                .doOnNext(this::validatePatchCitizen);
+
+            return citizenMono.zipWith(patchCitizenMono)
+                .flatMap(this::updateCitizen)
+                .zipWhen(this::updateRelatives)
+                .flatMap(updatedCitizen -> {
+                    ImportCitizenDTO importCitizen = this.mapCitizenToDTO(updatedCitizen.getT1().getT1(), updatedCitizen.getT2());
+                    return ok().bodyValue(new DataResponseDTO<>(importCitizen));
+                })
+                .onErrorResume(err -> {
+                    log.error("", err);
+                    return badRequest().build();
+                });
+        } catch (NumberFormatException ex) {
+            return badRequest().build();
+        }
     }
 
     private Mono<Tuple2<List<Relative>, Citizen>> findRelativesForCitizen(Citizen citizen, Integer importId) {
@@ -161,9 +269,10 @@ public class ImportHandler {
     }
 
     private ImportCitizenDTO mapCitizenToDTO(Tuple2<List<Relative>, Citizen> citizenAndRelatives) {
-        Citizen citizen = citizenAndRelatives.getT2();
-        List<Relative> relatives = citizenAndRelatives.getT1();
+        return this.mapCitizenToDTO(citizenAndRelatives.getT2(), citizenAndRelatives.getT1());
+    }
 
+    private ImportCitizenDTO mapCitizenToDTO(Citizen citizen, List<Relative> relatives) {
         ImportCitizenDTO importCitizen = new ImportCitizenDTO();
         importCitizen.setCitizenId(citizen.getCitizenId());
         importCitizen.setTown(citizen.getTown());
@@ -173,7 +282,7 @@ public class ImportHandler {
         importCitizen.setName(citizen.getName());
         importCitizen.setBirthDate(citizen.getBirthDate());
         importCitizen.setGender(citizen.getGender());
-        importCitizen.setRelatives(relatives.stream().map(Relative::getRelativeId).collect(Collectors.toList()));
+        importCitizen.setRelatives(relatives.stream().filter(relative -> relative.getCitizenId() == citizen.getCitizenId()).map(Relative::getRelativeId).collect(Collectors.toList()));
 
         return importCitizen;
     }

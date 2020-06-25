@@ -44,7 +44,7 @@ public class RouteConfig {
     public RouterFunction<ServerResponse> routes() {
         return route(GET("/hello-world"), this.importHandler::helloWorld)
             .and(route(POST("/imports"), this.importHandler::addImport))
-            .and(route(PATCH("/imports/{importId}/citizens/{citizen_id}"),
+            .and(route(PATCH("/imports/{importId}/citizens/{citizenId}"),
                 this.importHandler::patchCitizen))
             .and(route(GET("/imports/{importId}/citizens"),
                 this.importHandler::getImport))
