@@ -1,11 +1,9 @@
 package dev.kirillzhelt.customers.handler;
 
-import dev.kirillzhelt.customers.dto.ImportCitizenDTO;
-import dev.kirillzhelt.customers.dto.DataResponseDTO;
-import dev.kirillzhelt.customers.dto.ImportDTO;
-import dev.kirillzhelt.customers.dto.PatchCitizenDTO;
+import dev.kirillzhelt.customers.dto.*;
 import dev.kirillzhelt.customers.entity.Citizen;
 import dev.kirillzhelt.customers.entity.Import;
+import dev.kirillzhelt.customers.entity.PresentsInfo;
 import dev.kirillzhelt.customers.entity.Relative;
 import dev.kirillzhelt.customers.repository.CitizenRepository;
 import dev.kirillzhelt.customers.repository.ImportRepository;
@@ -27,6 +25,7 @@ import javax.validation.ValidationException;
 import javax.validation.Validator;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
@@ -302,16 +301,36 @@ public class ImportHandler {
                     return citizensMono
                         .flatMap(citizens -> ok().bodyValue(new DataResponseDTO<>(citizens)));
                 } else {
-                    return status(HttpStatus.BAD_REQUEST).build();
+                    return notFound().build();
                 }
             });
         } catch (NumberFormatException ex) {
-            return status(HttpStatus.BAD_REQUEST).build();
+            return badRequest().build();
         }
     }
 
     public Mono<ServerResponse> countPresents(ServerRequest req) {
-        return status(HttpStatus.NOT_IMPLEMENTED).build();
+        try {
+            int importId = Integer.parseInt(req.pathVariable("importId"));
+            return this.importRepository.existsById(importId).flatMap(exists -> {
+               if (exists) {
+                   Map<Integer, Collection<PresentsDTO>> presentsForMonth = IntStream.range(1, 13)
+                       .boxed().collect(Collectors.toMap(i -> i, i -> new ArrayList<>()));
+
+                   Mono<Map<Integer, Collection<PresentsDTO>>> presentsForMonthMono = this.relativeRepository.countRelativesBirthdays(importId)
+                       .collectMultimap(PresentsInfo::getMonth,
+                           presentsInfo -> new PresentsDTO(presentsInfo.getCitizenId(), presentsInfo.getPresents()),
+                           () -> presentsForMonth);
+
+                   return presentsForMonthMono.flatMap(presentsData ->
+                       ok().bodyValue(new DataResponseDTO<Map<Integer, Collection<PresentsDTO>>>(presentsData)));
+               } else {
+                   return notFound().build();
+               }
+            });
+        } catch (NumberFormatException ex) {
+            return badRequest().build();
+        }
     }
 
     public Mono<ServerResponse> countStatistics(ServerRequest req) {
