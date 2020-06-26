@@ -2,6 +2,7 @@ package dev.kirillzhelt.customers.entity;
 
 import dev.kirillzhelt.customers.entity.util.Gender;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,10 +21,6 @@ public class Citizen {
     private String name;
     private LocalDate birthDate;
     private Gender gender;
-
-    private Double p50;
-    private Double p75;
-    private Double p99;
 
     public Citizen() {}
 
@@ -117,30 +114,6 @@ public class Citizen {
 
     public void setGender(Gender gender) {
         this.gender = gender;
-    }
-
-    public Double getP50() {
-        return p50;
-    }
-
-    public void setP50(Double p50) {
-        this.p50 = p50;
-    }
-
-    public Double getP75() {
-        return p75;
-    }
-
-    public void setP75(Double p75) {
-        this.p75 = p75;
-    }
-
-    public Double getP99() {
-        return p99;
-    }
-
-    public void setP99(Double p99) {
-        this.p99 = p99;
     }
 
     @Override

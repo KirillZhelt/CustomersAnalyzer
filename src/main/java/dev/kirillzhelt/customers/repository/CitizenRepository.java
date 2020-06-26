@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 public interface CitizenRepository extends ReactiveCrudRepository<Citizen, Integer> {
 
     Flux<Citizen> findAllByImportId(Integer importId);
+
     Mono<Citizen> findByImportIdAndCitizenId(Integer importId, Integer citizenId);
 
     @Query("SELECT c.town as town, " +
