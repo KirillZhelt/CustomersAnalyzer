@@ -1,4 +1,4 @@
-package dev.kirillzhelt.customers.entity;
+package dev.kirillzhelt.customers.entity.projection;
 
 public interface PresentsInfo {
 

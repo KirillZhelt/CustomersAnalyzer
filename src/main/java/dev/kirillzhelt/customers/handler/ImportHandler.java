@@ -3,12 +3,12 @@ package dev.kirillzhelt.customers.handler;
 import dev.kirillzhelt.customers.dto.*;
 import dev.kirillzhelt.customers.entity.Citizen;
 import dev.kirillzhelt.customers.entity.Import;
-import dev.kirillzhelt.customers.entity.PresentsInfo;
+import dev.kirillzhelt.customers.entity.projection.AgesForCityInfo;
+import dev.kirillzhelt.customers.entity.projection.PresentsInfo;
 import dev.kirillzhelt.customers.entity.Relative;
 import dev.kirillzhelt.customers.repository.CitizenRepository;
 import dev.kirillzhelt.customers.repository.ImportRepository;
 import dev.kirillzhelt.customers.repository.RelativeRepository;
-import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 
@@ -334,7 +333,22 @@ public class ImportHandler {
     }
 
     public Mono<ServerResponse> countStatistics(ServerRequest req) {
-        return status(HttpStatus.NOT_IMPLEMENTED).build();
+        try {
+            Integer importId = Integer.parseInt(req.pathVariable("importId"));
+
+            return this.importRepository.existsById(importId).flatMap(exists -> {
+                if (exists) {
+                    return this.citizenRepository.countPercentiles(importId).collectList().flatMap(percentiles -> {
+                        DataResponseDTO<List<AgesForCityInfo>> dataResponse = new DataResponseDTO<>(percentiles);
+                        return ok().bodyValue(dataResponse);
+                    });
+                } else {
+                    return notFound().build();
+                }
+            });
+        } catch (NumberFormatException ex) {
+            return badRequest().build();
+        }
     }
 
 }

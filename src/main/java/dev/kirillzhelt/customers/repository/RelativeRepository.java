@@ -1,6 +1,6 @@
 package dev.kirillzhelt.customers.repository;
 
-import dev.kirillzhelt.customers.entity.PresentsInfo;
+import dev.kirillzhelt.customers.entity.projection.PresentsInfo;
 import dev.kirillzhelt.customers.entity.Relative;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;

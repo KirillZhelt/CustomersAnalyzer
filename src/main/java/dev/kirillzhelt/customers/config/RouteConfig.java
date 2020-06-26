@@ -50,7 +50,7 @@ public class RouteConfig {
                 this.importHandler::getImport))
             .and(route(GET("/imports/{importId}/citizens/birthdays"),
                 this.importHandler::countPresents))
-            .and(route(GET("/imports/{importId}/towns/percentile/age"),
+            .and(route(GET("/imports/{importId}/towns/stat/percentile/age"),
                 this.importHandler::countStatistics));
     }
 }
