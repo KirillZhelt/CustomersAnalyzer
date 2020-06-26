@@ -11,6 +11,9 @@ public class Relative {
     private int citizenId;
     private int relativeId;
 
+    private Integer presents;
+    private Integer month;
+
     public Relative() {}
 
     public Relative(int importId, int citizenId, int relativeId) {
@@ -51,6 +54,22 @@ public class Relative {
         this.relativeId = relativeId;
     }
 
+    public Integer getPresents() {
+        return presents;
+    }
+
+    public void setPresents(Integer presents) {
+        this.presents = presents;
+    }
+
+    public Integer getMonth() {
+        return month;
+    }
+
+    public void setMonth(Integer month) {
+        this.month = month;
+    }
+
     @Override
     public String toString() {
         return "Relative{" +
@@ -58,6 +77,8 @@ public class Relative {
             ", importId=" + importId +
             ", citizenId=" + citizenId +
             ", relativeId=" + relativeId +
+            ", presents=" + presents +
+            ", month=" + month +
             '}';
     }
 }
